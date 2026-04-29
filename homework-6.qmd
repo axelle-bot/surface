@@ -8,9 +8,9 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
-    theme: cosmo
+    theme: default
     code-fold: true
-    self-contained: true
+    self-contained: false
   pdf:
     toc: true
     number-sections: true
@@ -523,13 +523,15 @@ non concentré sur quelques territoires. L'écart-type se réduit légèrement
 
 ## Carte du taux de natalité en 2023
 
-```{r libs-carto, message=FALSE, warning=FALSE}
+```{r libs-carto
+, message=FALSE, warning=FALSE}
 library(leaflet)
 library(sf)
 library(htmlwidgets)
 ```
 
-```{r carte-prep}
+```{r carte-prep
+}
 # Chargement du shapefile et correction du cas Lyon (69D / 69M → 69)
 dpt <- sf::st_read("departements-20180101-shp",
                    quiet = TRUE)
@@ -549,7 +551,8 @@ dpt <- dpt |>
 dpt <- dpt |> left_join(final23, by = "Code.de.département")
 ```
 
-```{r carte-natalite, fig.cap="Taux de natalité départemental en 2023 (‰)"}
+```{r carte-natalite
+, fig.cap="Taux de natalité départemental en 2023 (‰)"}
 # Palette par classes discrètes pour une lecture claire
 pal_nat <- colorBin(
   palette  = "YlOrRd",
@@ -594,7 +597,8 @@ effets fixes départementaux et d'isoler la variation dans le temps.
 
 ## Carte du taux de couverture petite enfance en 2023
 
-```{r carte-couverture}
+```{r carte-couverture
+}
 pal_couv <- colorBin(
   palette  = "Greens",
   domain   = dpt$Taux.de.couv.global,
