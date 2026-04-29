@@ -1,0 +1,767 @@
+---
+title: "Les crèches favorisent-elles la natalité ? Une analyse départementale en France (2017–2023)"
+subtitle: "Introduction à l'Économétrie et à R"
+author: "Votre Nom"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    theme: cosmo
+    code-fold: true
+    self-contained: true
+  pdf:
+    toc: true
+    number-sections: true
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup, include=FALSE}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(psych)
+library(scales)
+library(ggrepel)
+```
+
+# Introduction
+
+La France fait face à un déclin démographique inédit. Son taux de natalité est 
+passé de 12,6 naissances pour 1 000 habitants en 2010 à environ 10,6 en 2017, 
+puis à 9,9 en 2023. Le rapport annuel de l'INED sur la conjoncture démographique 
+(2025) enregistre pour la première fois depuis un siècle une **croissance naturelle 
+nulle dans l'Hexagone**. Ce constat suscite un débat de politique publique croissant 
+autour des leviers susceptibles de soutenir la fécondité des ménages.
+
+Parmi ces leviers, le développement des structures d'accueil du jeune enfant 
+(EAJE — crèches, halte-garderies, micro-crèches) occupe une place centrale dans 
+les propositions récentes. L'intuition économique est directe : des modes de garde 
+accessibles réduisent le coût d'opportunité de la maternité pour les femmes actives, 
+facilitent la conciliation entre vie professionnelle et parentalité, et devraient 
+ainsi encourager les naissances. Cette logique se retrouve dans plusieurs recommandations 
+institutionnelles : l'Académie nationale de médecine place en deuxième position de 
+ses préconisations la création de 100 000 places de crèches d'ici 2030 avec un 
+financement pérenne de l'État et des CAF. Dans la même veine, Elsa Hervy, déléguée 
+générale de la Fédération française des entreprises de crèches, défend cette 
+orientation dans un article de la revue *Administration* (2025).
+
+## Revue de littérature
+
+**À l'international**, la relation entre l'offre de garde formelle et la fécondité 
+est documentée dans de nombreux pays, avec des résultats majoritairement positifs. 
+Les études les plus robustes ont été conduites en contexte nordique. Rindfuss, 
+Guilkey et Morgan (2010) exploitent une réforme d'ampleur en Norvège pour identifier 
+une variation **exogène** de l'offre de places et montrent un effet positif et 
+significatif sur la fécondité. Dans le même esprit, Mörk, Sjögren et Svaleryd (2013) 
+tirent parti d'une réforme suédoise sur le prix des crèches pour établir un lien 
+causal entre coût de la garde et décisions de fécondité.
+
+En Allemagne, Hener, Bauernschuster et Rainer (2013) mobilisent une stratégie de 
+**double différence** dans un contexte particulièrement favorable à l'identification : 
+l'ex-Allemagne de l'Est était largement dépourvue de places en crèche jusqu'au début 
+des années 2000, et la mise en œuvre des politiques d'expansion a varié fortement 
+d'un *Kreis* à l'autre, créant une variation locale exploitable. Leur étude confirme 
+un effet positif de l'augmentation de l'offre sur la natalité, avec une hétérogénéité 
+marquée selon l'ampleur de l'expansion locale.
+
+Plus généralement, des résultats convergents ont été obtenus au Japon, en Corée du 
+Sud et en Espagne — à l'exception notable d'un cas espagnol où les crèches privées 
+sont associées à une relation négative avec la natalité, suggérant que les 
+caractéristiques de l'offre (public vs. privé, tarification) importent autant que 
+son volume. Luci-Greulich et Thévenon (2013), dans une étude portant sur 18 pays 
+de l'OCDE, montrent que les services d'accueil pour les enfants de moins de trois 
+ans exercent un effet potentiellement plus important sur la fécondité que les congés 
+parentaux ou les transferts financiers à la naissance.
+
+**En France**, ce lien n'a, à notre connaissance, pas encore fait l'objet d'une 
+estimation causale directe au niveau infranational, ce qui explique que les rapports 
+institutionnels cités plus haut n'appuient pas leurs recommandations sur une étude 
+empirique française. Une analyse de l'INSEE (2020) a certes montré qu'accroître 
+l'offre de places en crèche avait peu d'effet sur l'emploi des mères, tout en 
+réduisant le recours aux autres modes de garde — mais la question de l'effet sur 
+la natalité reste ouverte.
+
+## Contribution de ce travail
+
+Ce travail propose une première approche empirique de cette question à l'échelle 
+des 96 départements métropolitains français, pour les années **2017** et **2023**. 
+En mobilisant les données CNAF sur les taux de couverture petite enfance et les 
+statistiques d'état civil de l'INSEE, nous tentons d'évaluer si l'évolution de 
+l'offre d'accueil est associée à une évolution du taux de natalité. Si la méthode 
+retenue — une approche en double différence — est plus simple que les stratégies 
+d'identification exploitées dans les études nordiques ou allemandes, et demeure 
+exposée à certains problèmes d'endogénéité, elle constitue un point de départ 
+rigoureux pour documenter ce lien dans le contexte français.
+
+---
+
+# Données
+
+La base de données mobilisée dans cette étude est construite par appariement de 
+trois sources statistiques publiques portant sur les **96 départements métropolitains** 
+pour les années **2017** et **2023** : les données de couverture petite enfance 
+(CNAF), les statistiques de naissances et de population (INSEE), et les données 
+d'emploi salarié départemental (INSEE). Les DROM-COM sont exclus : leurs 
+caractéristiques structurelles sont trop éloignées de celles des départements 
+métropolitains et leurs valeurs atypiques de natalité biaiseraient les estimations.
+
+Tous les identifiants géographiques sont harmonisés sous forme de chaîne de 
+caractères afin de traiter correctement les codes `2A` et `2B` lors des fusions.
+
+```{r libs, message=FALSE, warning=FALSE}
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(psych)
+library(ggrepel)
+
+# Codes des 96 départements métropolitains
+codes_metro <- c(sprintf("%02d", 1:19), "2A", "2B", as.character(21:95))
+```
+
+## Taux de couverture petite enfance (CNAF)
+
+Les données de couverture sont issues de deux fichiers de la CNAF : 
+`txcouv_pe_dep_hist.csv` pour les années antérieures à 2022 (qui contient donc 
+2017), et `txcouv_pe_dep.csv` pour 2022-2023. Chacun est filtré sur les 
+départements métropolitains, puis les années 2017 et 2023 sont extraites 
+séparément.
+
+```{r couverture}
+# Chargement et filtrage sur la métropole
+crechedep2223 <- read.csv("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/txcouv_pe_dep.csv",      sep = ";") |>
+  filter(Numéro.Département %in% codes_metro)
+
+crechedep1722 <- read.csv("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/txcouv_pe_dep_hist.csv", sep = ";") |>
+  filter(Numéro.Département %in% codes_metro)
+
+# Extraction des années cibles et sélection des variables utiles
+vars_couv <- c("Date.référence", "Numéro.Département", "Nom.Département",
+               "Taux.de.couv.EAJE.PSU", "Taux.de.couv.hors.EAJE.PSU",
+               "Taux.de.couv.EAJE...ensemble", "Taux.de.couv.préscolarisation",
+               "Taux.de.couv.assistante.maternelle", "Taux.de.couv.salariée.à.domicile",
+               "Taux.de.couv.accueil.individuel...ensemble", "Taux.de.couv.global")
+
+noms_couv <- c("année", "Code.de.département", "département",
+               "Taux.de.couv.EAJE.PSU", "Taux.de.couv.hors.EAJE.PSU",
+               "Taux.de.couv.EAJE...ensemble", "Taux.de.couv.préscolarisation",
+               "Taux.de.couv.assistante.maternelle", "Taux.de.couv.salariée.à.domicile",
+               "Taux.de.couv.accueil.individuel...ensemble", "Taux.de.couv.global")
+
+crechedep17 <- crechedep1722 |> filter(Date.référence == 2017) |>
+  select(all_of(vars_couv)) |> setNames(noms_couv)
+
+crechedep23 <- crechedep2223 |> filter(Date.référence == 2023) |>
+  select(all_of(vars_couv)) |> setNames(noms_couv)
+```
+
+Le **taux de couverture** mesure la capacité d'accueil théorique pour 100 enfants 
+de moins de 3 ans dans un département. Il se décompose en plusieurs modes d'accueil :
+
+| Mode | Variable | Nature |
+|---|---|---|
+| EAJE PSU | `Taux.de.couv.EAJE.PSU` | Crèches collectives, halte-garderies (financement CAF-PSU) |
+| Hors PSU | `Taux.de.couv.hors.EAJE.PSU` | Micro-crèches PAJE |
+| Préscolarisation | `Taux.de.couv.préscolarisation` | Enfants < 3 ans en maternelle |
+| Assistante maternelle | `Taux.de.couv.assistante.maternelle` | Accueil individuel agréé |
+| Salariée à domicile | `Taux.de.couv.salariée.à.domicile` | Garde au domicile |
+| **Global** | `Taux.de.couv.global` | Agrégat de tous les modes |
+
+Pour l'estimation, on construit deux variables synthétiques selon la nature de 
+l'accueil. L'accueil **collectif** regroupe les structures relevant principalement 
+de décisions publiques d'investissement ; l'accueil **individuel** dépend davantage 
+du marché local et des préférences des familles. Cette distinction permet de tester 
+si l'effet sur la natalité diffère selon le type de garde.
+
+$$\text{Couverture collective} = \text{EAJE PSU} + \text{Hors EAJE PSU} + \text{Préscolarisation}$$
+$$\text{Couverture individuelle} = \text{Assistante maternelle} + \text{Salariée à domicile}$$
+
+Les virgules décimales présentes dans les fichiers bruts CNAF sont remplacées par 
+des points (`gsub(",", ".", .)`) avant toute conversion numérique.
+
+```{r couverture-synth}
+# Conversion numérique et construction des agrégats collectif / individuel
+construire_taux_couv <- function(df) {
+  df |>
+    mutate(
+      Code.de.département = as.character(Code.de.département),
+      across(starts_with("Taux"), ~ as.numeric(gsub(",", ".", .))),
+      Taux.de.couv.collectif  = Taux.de.couv.EAJE.PSU +
+                                 Taux.de.couv.hors.EAJE.PSU +
+                                 Taux.de.couv.préscolarisation,
+      Taux.de.couv.individuel = Taux.de.couv.assistante.maternelle +
+                                 Taux.de.couv.salariée.à.domicile
+    )
+}
+
+crechedep17 <- construire_taux_couv(crechedep17)
+crechedep23 <- construire_taux_couv(crechedep23)
+```
+
+## Taux de natalité (INSEE)
+
+Les données de naissances sont issues du tableau N1D de l'INSEE (état civil). 
+Après suppression des lignes d'en-tête, les naissances sont appariées aux 
+populations départementales issues du recensement. Un tableau de correspondance 
+(`codes_dep`) permet d'associer le nom de département tel que fourni par l'INSEE 
+au code officiel.
+
+```{r natalite}
+# Table de correspondance nom → code département
+codes_dep <- data.frame(
+  Code.de.département = c(
+    "01","02","03","04","05","06","07","08","09","10","11","12","13","14","15",
+    "16","17","18","19","21","22","23","24","25","26","27","28","29","2A","2B",
+    "30","31","32","33","34","35","36","37","38","39","40","41","42","43","44",
+    "45","46","47","48","49","50","51","52","53","54","55","56","57","58","59",
+    "60","61","62","63","64","65","66","67","68","69","70","71","72","73","74",
+    "75","76","77","78","79","80","81","82","83","84","85","86","87","88","89",
+    "90","91","92","93","94","95"),
+  département = c(
+    "Ain","Aisne","Allier","Alpes-de-Haute-Provence","Hautes-Alpes",
+    "Alpes-Maritimes","Ardèche","Ardennes","Ariège","Aube","Aude","Aveyron",
+    "Bouches-du-Rhône","Calvados","Cantal","Charente","Charente-Maritime","Cher",
+    "Corrèze","Côte-d'Or","Côtes-d'Armor","Creuse","Dordogne","Doubs","Drôme",
+    "Eure","Eure-et-Loir","Finistère","Corse-du-Sud","Haute-Corse","Gard",
+    "Haute-Garonne","Gers","Gironde","Hérault","Ille-et-Vilaine","Indre",
+    "Indre-et-Loire","Isère","Jura","Landes","Loir-et-Cher","Loire",
+    "Haute-Loire","Loire-Atlantique","Loiret","Lot","Lot-et-Garonne","Lozère",
+    "Maine-et-Loire","Manche","Marne","Haute-Marne","Mayenne",
+    "Meurthe-et-Moselle","Meuse","Morbihan","Moselle","Nièvre","Nord","Oise",
+    "Orne","Pas-de-Calais","Puy-de-Dôme","Pyrénées-Atlantiques",
+    "Hautes-Pyrénées","Pyrénées-Orientales","Bas-Rhin","Haut-Rhin","Rhône",
+    "Haute-Saône","Saône-et-Loire","Sarthe","Savoie","Haute-Savoie","Paris",
+    "Seine-Maritime","Seine-et-Marne","Yvelines","Deux-Sèvres","Somme","Tarn",
+    "Tarn-et-Garonne","Var","Vaucluse","Vendée","Vienne","Haute-Vienne",
+    "Vosges","Yonne","Territoire de Belfort","Essonne","Hauts-de-Seine",
+    "Seine-Saint-Denis","Val-de-Marne","Val-d'Oise")
+)
+
+# Chargement, nettoyage et appariement des naissances
+charger_naissances <- function(fichier, ext = "xlsx") {
+  lire <- if (ext == "xls") read_xls else read_xlsx
+  lire(fichier) |>
+    slice(-(1:3)) |>
+    select(1:2) |>
+    setNames(c("département", "naissances")) |>
+    merge(codes_dep, by = "département", all.x = TRUE) |>
+    filter(!is.na(Code.de.département),
+           Code.de.département %in% codes_metro)
+}
+
+tauxdenatalite17 <- charger_naissances("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/N1D.xls",  ext = "xls")
+tauxdenatalite23 <- charger_naissances("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/irsocsd2023_dd9_xlsx/n1d.xlsx", ext = "xlsx")
+```
+
+Les populations départementales sont extraites des fichiers de recensement 
+(onglet "Départements"). Seules les colonnes d'identification et d'effectif total 
+sont conservées ; les colonnes intermédiaires sont supprimées.
+
+```{r population}
+charger_population <- function(fichier, ext = "xlsx") {
+  lire <- if (ext == "xls") read_xls else read_xlsx
+  lire(fichier, sheet = "Départements") |>
+    setNames(c("a","b","Code.de.département","département","d","e","f","g","population")) |>
+    select(Code.de.département, département, population) |>
+    slice(-(1:7)) |>
+    filter(Code.de.département %in% codes_metro)
+}
+
+population17 <- charger_population("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/ensemble.xls", ext = "xls")
+population23 <- charger_population("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/ensemble.xlsx", ext = "xlsx")
+```
+
+Le taux de natalité est ensuite calculé selon la formule :
+
+$$\text{Taux de natalité}_{d,t} = \frac{\text{Naissances}_{d,t}}{\text{Population}_{d,t}} \times 1000$$
+
+Les espaces insécables utilisés comme séparateurs de milliers dans les fichiers 
+bruts sont supprimés avec `gsub` avant conversion numérique.
+
+```{r calcul-taux-nat}
+calculer_taux_nat <- function(naissances_df, population_df, nom_var) {
+  merge(naissances_df, population_df, by = "Code.de.département") |>
+    mutate(
+      naissances = as.numeric(gsub("[ ,]", "", naissances)),
+      population = as.numeric(gsub("[ ,]", "", population)),
+      !!nom_var  := (naissances / population) * 1000,
+      Code.de.département = as.character(Code.de.département)
+    ) |>
+    select(Code.de.département, naissances, population, !!sym(nom_var))
+}
+
+taux17 <- calculer_taux_nat(tauxdenatalite17, population17, "taux_natalite_2017")
+taux23 <- calculer_taux_nat(tauxdenatalite23, population23, "taux_natalite_2023")
+```
+
+On peut vérifier la plausibilité des valeurs : le taux moyen sur les 96 
+départements métropolitains est de **`r round(mean(taux17$taux_natalite_2017), 2)` ‰** 
+en 2017 et **`r round(mean(taux23$taux_natalite_2023), 2)` ‰** en 2023, 
+cohérents avec les taux nationaux publiés par l'INSEE (qui incluent également 
+les DROM, légèrement plus élevés).
+
+## Indice d'emploi relatif (INSEE)
+
+Les données d'emploi salarié sont issues du tableau longitudinal T201 de l'INSEE. 
+Après suppression des lignes d'en-tête et filtrage des entités non départementales, 
+seules les colonnes 2017 et 2023 sont conservées.
+
+Le marché du travail local est une variable confondante incontournable : un 
+département économiquement dynamique attire des actifs en âge de procréer, ce 
+qui peut simultanément accroître la demande de crèches et le taux de natalité. 
+Omettre cette variable conduirait à surestimer l'effet propre des crèches.
+
+On construit un **indice d'emploi relatif** en normalisant le taux d'emploi 
+brut de chaque département par le taux d'emploi national :
+
+$$\text{Indice d'emploi}_{d,t} = \frac{\text{Emplois}_{d,t} / \text{Population}_{d,t}}{\displaystyle\sum_d \text{Emplois}_{d,t} \big/ \sum_d \text{Population}_{d,t}} \times 100$$
+
+Un indice de 100 correspond à la moyenne nationale. Les valeurs supérieures à 
+100 indiquent une densité d'emploi supérieure à la moyenne (Paris, 
+Hauts-de-Seine) ; inférieures à 100, une économie locale moins dense 
+(départements ruraux).
+
+```{r emploi}
+emploi_raw <- read_xlsx("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/t201.xlsx", sheet = "ENS - T") |>
+  slice(-(1:3))
+
+# Renommer les colonnes années
+names(emploi_raw) <- c("département", as.character(1989:2023))
+
+# Extraire le code département (avant le tiret) et filtrer sur la métropole
+emploi_raw <- emploi_raw |>
+  mutate(Code.de.département = sub("-.*", "", département)) |>
+  filter(grepl("^(0[1-9]|[1-9][0-9]|2A|2B)$", Code.de.département))
+
+# Fonction : jointure emploi + population → indice relatif
+construire_indice_emploi <- function(emploi_df, population_df, annee) {
+  emploi_df |>
+    select(Code.de.département, département, emplois = all_of(annee)) |>
+    left_join(population_df, by = "Code.de.département") |>
+    mutate(
+      emplois    = as.numeric(gsub("[ ,]", "", emplois)),
+      population = as.numeric(gsub("[ ,]", "", population))
+    ) |>
+    mutate(
+      taux_france   = sum(emplois, na.rm = TRUE) / sum(population, na.rm = TRUE),
+      indice_emploi = (emplois / population) / taux_france * 100,
+      Code.de.département = as.character(Code.de.département)
+    ) |>
+    select(Code.de.département, emplois, population, indice_emploi)
+}
+
+base17 <- construire_indice_emploi(emploi_raw, population17, "2017")
+base23 <- construire_indice_emploi(emploi_raw, population23, "2023")
+```
+
+## Fusion des trois sources et base finale
+
+Les trois sources sont appariées par `Code.de.département`. Les colonnes 
+redondantes issues des fusions (libellés géographiques dupliqués, colonnes 
+intermédiaires) sont supprimées. Les variables synthétiques de couverture 
+collective et individuelle étant déjà construites, la base finale est prête 
+pour l'estimation.
+
+```{r fusion}
+fusionner <- function(couv, taux_nat, emploi) {
+  merge(couv,     taux_nat, by = "Code.de.département", all = TRUE) |>
+  merge(emploi,             by = "Code.de.département", all = TRUE) |>
+  select(-matches("département\\.[xy]|population\\.x|^année$")) |>
+  filter(!is.na(Taux.de.couv.EAJE.PSU)) |>
+  distinct(Code.de.département, .keep_all = TRUE)
+}
+
+final17 <- fusionner(crechedep17, taux17, base17)
+final23 <- fusionner(crechedep23, taux23, base23)
+```
+
+On vérifie les dimensions et la cohérence interne : la somme des couvertures 
+collective et individuelle construites doit être proche du taux global fourni 
+directement par la CNAF. Des écarts résiduels mineurs peuvent exister en raison 
+d'arrondis dans les fichiers sources.
+
+```{r verif}
+cat("Dimensions — final17 :", nrow(final17), "×", ncol(final17),
+    " | final23 :", nrow(final23), "×", ncol(final23), "\n")
+
+final17 |>
+  mutate(ecart = abs((Taux.de.couv.collectif + Taux.de.couv.individuel) -
+                      Taux.de.couv.global)) |>
+  summarise(`Écart moyen (pts)` = round(mean(ecart, na.rm = TRUE), 3),
+            `Écart max (pts)`   = round(max(ecart,  na.rm = TRUE), 3)) |>
+  kbl(caption = "Cohérence interne : collectif + individuel vs. taux global — 2017") |>
+  kable_styling(bootstrap_options = "striped", full_width = FALSE)
+```
+
+```{r apercu}
+final17 |>
+  select(Code.de.département, département, taux_natalite_2017,
+         Taux.de.couv.global, Taux.de.couv.collectif,
+         Taux.de.couv.individuel, indice_emploi) |>
+  head(6) |>
+  mutate(across(where(is.numeric), ~ round(., 2))) |>
+  kbl(caption = "Aperçu de la base 2017 — variables retenues pour l'estimation") |>
+  kable_styling(bootstrap_options = c("striped", "condensed"))
+```
+
+---
+
+# Statistiques descriptives et analyse exploratoire
+
+## Tableau de statistiques descriptives
+
+```{r stats-desc-tableau}
+stats_desc <- function(df, annee, var_natalite) {
+  df |>
+    summarise(
+      Année                = annee,
+      `Moy. natalité`      = mean(.data[[var_natalite]], na.rm = TRUE),
+      `SD natalité`        = sd(.data[[var_natalite]], na.rm = TRUE),
+      `Min natalité`       = min(.data[[var_natalite]], na.rm = TRUE),
+      `Médiane natalité`   = median(.data[[var_natalite]], na.rm = TRUE),
+      `Max natalité`       = max(.data[[var_natalite]], na.rm = TRUE),
+      `Moy. couv. globale` = mean(Taux.de.couv.global, na.rm = TRUE),
+      `SD couv. globale`   = sd(Taux.de.couv.global, na.rm = TRUE),
+      `Min couv. globale`  = min(Taux.de.couv.global, na.rm = TRUE),
+      `Méd. couv. globale` = median(Taux.de.couv.global, na.rm = TRUE),
+      `Max couv. globale`  = max(Taux.de.couv.global, na.rm = TRUE),
+      `Moy. indice emploi` = mean(indice_emploi, na.rm = TRUE),
+      `SD indice emploi`   = sd(indice_emploi, na.rm = TRUE)
+    )
+}
+
+bind_rows(
+  stats_desc(final17, "2017", "taux_natalite_2017"),
+  stats_desc(final23, "2023", "taux_natalite_2023")
+) |>
+  mutate(across(where(is.numeric), ~ round(., 2))) |>
+  kbl(caption = "Statistiques descriptives comparées — 2017 et 2023") |>
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = TRUE)
+```
+
+```{r stats-psych, message=FALSE}
+library(psych)
+
+final17 |>
+  select(taux_natalite_2017, Taux.de.couv.global, Taux.de.couv.collectif,
+         Taux.de.couv.individuel, indice_emploi) |>
+  describe(skew = FALSE) |>
+  as.data.frame() |>
+  select(n, mean, sd, median, min, max) |>
+  round(2) |>
+  kbl(caption = "Statistiques descriptives détaillées — 2017") |>
+  kable_styling(bootstrap_options = c("striped", "condensed"))
+
+final23 |>
+  select(taux_natalite_2023, Taux.de.couv.global, Taux.de.couv.collectif,
+         Taux.de.couv.individuel, indice_emploi) |>
+  describe(skew = FALSE) |>
+  as.data.frame() |>
+  select(n, mean, sd, median, min, max) |>
+  round(2) |>
+  kbl(caption = "Statistiques descriptives détaillées — 2023") |>
+  kable_styling(bootstrap_options = c("striped", "condensed"))
+```
+
+Entre 2017 et 2023, le taux de natalité moyen sur les 96 départements 
+métropolitains recule de **9,93 ‰ à 8,72 ‰** (−12,2 %), tandis que le taux 
+de couverture global progresse légèrement de **62,3 % à 63,2 %**, avec une 
+dispersion qui se resserre (l'écart-type passe de 11,25 à 9,45 points), 
+suggérant une certaine convergence entre départements. L'indice d'emploi 
+moyen reste stable autour de 91, mais sa dispersion s'accroît légèrement.
+
+---
+
+## Distribution du taux de natalité
+
+```{r distrib-natalite, fig.width=10, fig.height=5}
+df_nat <- bind_rows(
+  final17 |> select(département, taux = taux_natalite_2017) |> mutate(Année = "2017"),
+  final23 |> select(département, taux = taux_natalite_2023) |> mutate(Année = "2023")
+)
+
+moyennes_nat <- df_nat |> group_by(Année) |> summarise(m = mean(taux))
+
+ggplot(df_nat, aes(x = taux, fill = Année)) +
+  geom_histogram(bins = 20, alpha = 0.7, position = "identity", color = "white") +
+  geom_vline(data = moyennes_nat, aes(xintercept = m, color = Année),
+             linetype = "dashed", linewidth = 1) +
+  scale_fill_manual(values  = c("2017" = "#2c7bb6", "2023" = "#d7191c")) +
+  scale_color_manual(values = c("2017" = "#2c7bb6", "2023" = "#d7191c")) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title    = "Distribution du taux de natalité départemental",
+    subtitle = "96 départements métropolitains — 2017 vs 2023",
+    x        = "Taux de natalité (‰)",
+    y        = "Nombre de départements",
+    caption  = "Source : INSEE. Les lignes pointillées indiquent la moyenne."
+  )
+```
+
+**Lecture.** La distribution est asymétrique à droite dans les deux années : 
+la majorité des départements se concentre entre 8 et 12 ‰, mais une queue 
+droite tirée vers le haut est visible. Ce phénomène s'explique par quelques 
+départements urbains à forte population immigrée, au premier rang desquels la 
+Seine-Saint-Denis (17,8 ‰ en 2017, 15,5 ‰ en 2023). L'ensemble de la 
+distribution se déplace vers la gauche entre les deux années — illustrant que 
+la baisse de natalité est un phénomène généralisé à tous les départements et 
+non concentré sur quelques territoires. L'écart-type se réduit légèrement 
+(de 1,97 à 1,74 ‰), signe d'une légère convergence.
+
+---
+
+## Carte du taux de natalité en 2023
+
+```{r libs-carto, message=FALSE, warning=FALSE}
+library(leaflet)
+library(sf)
+library(htmlwidgets)
+```
+
+```{r carte-prep}
+# Chargement du shapefile et correction du cas Lyon (69D / 69M → 69)
+dpt <- sf::st_read("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/departements-20180101-shp",
+                   quiet = TRUE)
+
+dpt[dpt$code_insee %in% c("69D", "69M"), "code_insee"] <- "69"
+dpt[dpt$nom %in% c("Rhône", "Métropole de Lyon"), "nom"] <- "Rhône"
+dpt <- dpt |> select(code_insee, nom, geometry)
+dpt <- dplyr::rename(dpt, Code.de.département = code_insee)
+
+# Fusion des deux polygones Rhône en un seul
+y   <- sf::st_union(dpt[dpt$Code.de.département == "69", ])
+dpt <- dpt |>
+  dplyr::add_row(Code.de.département = "69", nom = "Rhône", geometry = y) |>
+  dplyr::slice(-c(64, 65))
+
+# Jointure avec les données 2023
+dpt <- dpt |> left_join(final23, by = "Code.de.département")
+```
+
+```{r carte-natalite, fig.cap="Taux de natalité départemental en 2023 (‰)"}
+# Palette par classes discrètes pour une lecture claire
+pal_nat <- colorBin(
+  palette  = "YlOrRd",
+  domain   = dpt$taux_natalite_2023,
+  bins     = c(5, 7, 8, 9, 10, 11, 13, 16),
+  na.color = "#d9d9d9"
+)
+
+leaflet(data = dpt) |>
+  addProviderTiles(providers$CartoDB.Positron) |>
+  setView(lng = 2.2137, lat = 46.2276, zoom = 6) |>
+  addPolygons(
+    fillColor      = ~pal_nat(taux_natalite_2023),
+    fillOpacity    = 0.85,
+    color          = "#555555",
+    weight         = 0.8,
+    label          = ~nom,
+    popup          = ~paste0("<b>", nom, "</b><br>Taux de natalité 2023 : ",
+                             round(taux_natalite_2023, 2), " ‰"),
+    highlightOptions = highlightOptions(weight = 2, color = "#000",
+                                        fillOpacity = 0.95, bringToFront = TRUE)
+  ) |>
+  addLegend(pal = pal_nat, values = ~taux_natalite_2023,
+            title = "Taux de natalité (‰)", position = "bottomright",
+            opacity = 0.85) |>
+  addScaleBar(position = "bottomleft",
+              options  = scaleBarOptions(imperial = FALSE))
+```
+
+**Lecture.** La carte révèle une **géographie de la natalité très contrastée** 
+en 2023. Les taux les plus élevés se concentrent dans les grandes métropoles 
+et leurs couronnes (Seine-Saint-Denis, Guyane exclue de l'échantillon, 
+Hérault, Loire-Atlantique), ainsi que dans certains départements du littoral 
+atlantique réputés dynamiques démographiquement. À l'inverse, les départements 
+du Massif central, de la Bretagne intérieure et du grand quart nord-est 
+affichent les valeurs les plus faibles, témoignant du vieillissement 
+structurel de ces territoires. Cette hétérogénéité spatiale justifie l'approche 
+en double différence retenue dans l'estimation : elle permet de contrôler les 
+effets fixes départementaux et d'isoler la variation dans le temps.
+
+---
+
+## Carte du taux de couverture petite enfance en 2023
+
+```{r carte-couverture}
+pal_couv <- colorBin(
+  palette  = "Greens",
+  domain   = dpt$Taux.de.couv.global,
+  bins     = c(35, 50, 57, 63, 70, 77, 86),
+  na.color = "#d9d9d9"
+)
+
+leaflet(data = dpt) |>
+  addProviderTiles(providers$CartoDB.Positron) |>
+  setView(lng = 2.2137, lat = 46.2276, zoom = 6) |>
+  addPolygons(
+    fillColor      = ~pal_couv(Taux.de.couv.global),
+    fillOpacity    = 0.85,
+    color          = "#555555",
+    weight         = 0.8,
+    label          = ~nom,
+    popup          = ~paste0("<b>", nom, "</b><br>Taux de couverture global 2023 : ",
+                             round(Taux.de.couv.global, 1), " %"),
+    highlightOptions = highlightOptions(weight = 2, color = "#000",
+                                        fillOpacity = 0.95, bringToFront = TRUE)
+  ) |>
+  addLegend(pal = pal_couv, values = ~Taux.de.couv.global,
+            title = "Taux de couverture global (%)", position = "bottomright",
+            opacity = 0.85) |>
+  addScaleBar(position = "bottomleft",
+              options  = scaleBarOptions(imperial = FALSE))
+```
+
+**Lecture.** La couverture petite enfance présente une géographie sensiblement 
+différente de celle de la natalité. Les départements les mieux dotés en 2023 
+sont essentiellement ruraux et de l'Ouest (Vendée, Mayenne, Maine-et-Loire, 
+Haute-Loire), où l'accueil individuel par assistantes maternelles est 
+historiquement très développé. À l'inverse, la Corse-du-Sud (38,9 %) et la 
+Seine-Saint-Denis (40,9 %) affichent les taux les plus faibles — paradoxe 
+apparent pour ce dernier département qui combine le taux de natalité le plus 
+élevé de France et l'une des couvertures les plus basses, illustrant 
+précisément la tension entre demande non satisfaite et offre insuffisante que 
+cette étude cherche à analyser.
+
+---
+
+## Distribution du taux de couverture global
+
+```{r distrib-couverture, fig.width=10, fig.height=5}
+df_couv <- bind_rows(
+  final17 |> select(Taux.de.couv.global) |> mutate(Année = "2017"),
+  final23 |> select(Taux.de.couv.global) |> mutate(Année = "2023")
+)
+
+ggplot(df_couv, aes(x = Taux.de.couv.global, fill = Année)) +
+  geom_histogram(bins = 20, alpha = 0.7, position = "identity", color = "white") +
+  geom_vline(
+    data = df_couv |> group_by(Année) |> summarise(m = mean(Taux.de.couv.global)),
+    aes(xintercept = m, color = Année), linetype = "dashed", linewidth = 1
+  ) +
+  scale_fill_manual(values  = c("2017" = "#1a9641", "2023" = "#fdae61")) +
+  scale_color_manual(values = c("2017" = "#1a9641", "2023" = "#fdae61")) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title    = "Distribution du taux de couverture global de la petite enfance",
+    subtitle = "96 départements métropolitains — 2017 vs 2023",
+    x        = "Taux de couverture global (%)",
+    y        = "Nombre de départements",
+    caption  = "Source : CNAF. Les lignes pointillées indiquent la moyenne."
+  )
+```
+
+**Lecture.** La distribution du taux de couverture global est approximativement 
+normale, centrée autour de 62–63 %. Entre 2017 et 2023, la moyenne progresse 
+légèrement (+0,87 point) et l'écart-type se réduit notablement (11,25 → 9,45), 
+témoignant d'un **rattrapage des départements les moins bien dotés**. En 2017, 
+la Haute-Loire affichait le taux le plus élevé (92,6 %) tandis que la 
+Seine-Saint-Denis le plus faible (31,7 %) ; en 2023, l'amplitude se resserre, 
+la Vendée prenant la tête (85,7 %) et la Corse-du-Sud le bas du classement 
+(38,9 %). La convergence observée est compatible avec les politiques de 
+développement de l'accueil menées par la CNAF sur cette période.
+
+---
+
+## Accueil collectif versus accueil individuel
+
+```{r graph-collectif-individuel, fig.width=11, fig.height=5}
+df_type <- bind_rows(
+  final17 |>
+    select(département,
+           Collectif  = Taux.de.couv.collectif,
+           Individuel = Taux.de.couv.individuel) |>
+    pivot_longer(-département, names_to = "Type", values_to = "taux") |>
+    mutate(Année = "2017"),
+  final23 |>
+    select(département,
+           Collectif  = Taux.de.couv.collectif,
+           Individuel = Taux.de.couv.individuel) |>
+    pivot_longer(-département, names_to = "Type", values_to = "taux") |>
+    mutate(Année = "2023")
+)
+
+df_type |>
+  group_by(Année, Type) |>
+  summarise(moy = mean(taux, na.rm = TRUE), .groups = "drop") |>
+  ggplot(aes(x = Année, y = moy, fill = Type)) +
+  geom_col(position = "dodge", width = 0.5) +
+  geom_text(aes(label = round(moy, 1)), position = position_dodge(width = 0.5),
+            vjust = -0.4, size = 4) +
+  scale_fill_manual(values = c("Collectif" = "#2c7bb6", "Individuel" = "#d7191c")) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title    = "Taux de couverture moyen par type d'accueil",
+    subtitle = "Moyenne sur 96 départements métropolitains",
+    x        = NULL, y = "Taux de couverture moyen (%)",
+    caption  = "Source : CNAF."
+  )
+```
+
+**Lecture.** En 2017, l'accueil individuel (assistantes maternelles + salariées 
+à domicile) représente en moyenne **40,6 %** de couverture contre **21,7 %** 
+pour l'accueil collectif, soit une part de 65 % pour l'individuel dans la 
+couverture totale. En 2023, ce rapport évolue légèrement en faveur du collectif 
+(24,2 % vs 39,0 %), reflétant les efforts d'investissement dans les structures 
+EAJE sur cette période. La **prédominance de l'accueil individuel** est un trait 
+structurel du système français qui distingue la France de ses voisins nordiques, 
+où les crèches collectives sont plus développées. Cette distinction sera exploitée 
+dans l'estimation pour tester si l'effet sur la natalité diffère selon le mode 
+d'accueil.
+
+---
+
+## Corrélation préliminaire : natalité et couverture
+
+```{r scatterplot-principal, fig.width=10, fig.height=6, message=FALSE}
+ggplot(final23, aes(x = Taux.de.couv.global, y = taux_natalite_2023)) +
+  geom_point(alpha = 0.7, size = 2.5, color = "#2c7bb6") +
+  geom_smooth(method = "lm", se = TRUE, color = "#d7191c", linewidth = 1) +
+  geom_text_repel(
+    data = final23 |>
+      filter(taux_natalite_2023 > 12 | taux_natalite_2023 < 7 |
+             Taux.de.couv.global > 80 | Taux.de.couv.global < 45),
+    aes(label = gsub("^[0-9A-Z]+-", "", département)),
+    size = 3, max.overlaps = 12
+  ) +
+  theme_minimal(base_size = 13) +
+  labs(
+    title    = "Taux de natalité et couverture petite enfance en 2023",
+    subtitle = paste0("Corrélation de Pearson = ",
+                      round(cor(final23$taux_natalite_2023,
+                                final23$Taux.de.couv.global,
+                                use = "complete.obs"), 3)),
+    x        = "Taux de couverture global (%)",
+    y        = "Taux de natalité (‰)",
+    caption  = "Source : CNAF / INSEE. 96 départements métropolitains."
+  )
+```
+
+**Lecture.** La corrélation brute entre taux de couverture global et taux de 
+natalité est **négative** (r = −0,316 en 2023, r = −0,400 en 2017). Ce résultat, 
+contre-intuitif au regard des recommandations politiques, s'explique par deux 
+mécanismes de biais : d'une part une **causalité inverse** (les politiques 
+publiques de garde se développent en réponse à une demande elle-même liée à la 
+démographie locale), d'autre part la présence de **variables confondantes** — 
+notamment la structure économique du territoire. L'indice d'emploi est d'ailleurs 
+positivement corrélé à la natalité (r = 0,34 en 2017), ce qui indique que les 
+départements dynamiques économiquement sont à la fois plus natalistes et plus 
+dotés en emplois — et donc potentiellement en modes de garde. La corrélation brute 
+ne reflète donc pas l'effet causal recherché. C'est précisément pour corriger ces 
+biais que la stratégie en double différence est mobilisée dans la section suivante.
+
+---
+
+*Suite dans le prochain chat : Partie 4 — Stratégie d'identification et estimation (double différence)*
+
