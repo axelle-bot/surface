@@ -140,10 +140,10 @@ séparément.
 
 ```{r couverture}
 # Chargement et filtrage sur la métropole
-crechedep2223 <- read.csv("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/txcouv_pe_dep.csv",      sep = ";") |>
+crechedep2223 <- read.csv("txcouv_pe_dep.csv",      sep = ";") |>
   filter(Numéro.Département %in% codes_metro)
 
-crechedep1722 <- read.csv("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/txcouv_pe_dep_hist.csv", sep = ";") |>
+crechedep1722 <- read.csv("txcouv_pe_dep_hist.csv", sep = ";") |>
   filter(Numéro.Département %in% codes_metro)
 
 # Extraction des années cibles et sélection des variables utiles
@@ -260,8 +260,8 @@ charger_naissances <- function(fichier, ext = "xlsx") {
            Code.de.département %in% codes_metro)
 }
 
-tauxdenatalite17 <- charger_naissances("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/N1D.xls",  ext = "xls")
-tauxdenatalite23 <- charger_naissances("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/irsocsd2023_dd9_xlsx/n1d.xlsx", ext = "xlsx")
+tauxdenatalite17 <- charger_naissances("N1D.xls",  ext = "xls")
+tauxdenatalite23 <- charger_naissances("irsocsd2023_dd9_xlsx/n1d.xlsx", ext = "xlsx")
 ```
 
 Les populations départementales sont extraites des fichiers de recensement 
@@ -278,8 +278,8 @@ charger_population <- function(fichier, ext = "xlsx") {
     filter(Code.de.département %in% codes_metro)
 }
 
-population17 <- charger_population("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/ensemble.xls", ext = "xls")
-population23 <- charger_population("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/ensemble.xlsx", ext = "xlsx")
+population17 <- charger_population("ensemble.xls", ext = "xls")
+population23 <- charger_population("ensemble.xlsx", ext = "xlsx")
 ```
 
 Le taux de natalité est ensuite calculé selon la formule :
@@ -333,7 +333,7 @@ Hauts-de-Seine) ; inférieures à 100, une économie locale moins dense
 (départements ruraux).
 
 ```{r emploi}
-emploi_raw <- read_xlsx("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/t201.xlsx", sheet = "ENS - T") |>
+emploi_raw <- read_xlsx("t201.xlsx", sheet = "ENS - T") |>
   slice(-(1:3))
 
 # Renommer les colonnes années
@@ -458,7 +458,7 @@ final17 |>
          Taux.de.couv.individuel, indice_emploi) |>
   describe(skew = FALSE) |>
   as.data.frame() |>
-  select(n, mean, sd, median, min, max) |>
+  select(n, mean, sd, min, max) |>
   round(2) |>
   kbl(caption = "Statistiques descriptives détaillées — 2017") |>
   kable_styling(bootstrap_options = c("striped", "condensed"))
@@ -468,7 +468,7 @@ final23 |>
          Taux.de.couv.individuel, indice_emploi) |>
   describe(skew = FALSE) |>
   as.data.frame() |>
-  select(n, mean, sd, median, min, max) |>
+  select(n, mean, sd, min, max) |>
   round(2) |>
   kbl(caption = "Statistiques descriptives détaillées — 2023") |>
   kable_styling(bootstrap_options = c("striped", "condensed"))
@@ -531,7 +531,7 @@ library(htmlwidgets)
 
 ```{r carte-prep}
 # Chargement du shapefile et correction du cas Lyon (69D / 69M → 69)
-dpt <- sf::st_read("C:/Users/axell/OneDrive - Université Paris Sciences et Lettres/Bureau/departements-20180101-shp",
+dpt <- sf::st_read("departements-20180101-shp",
                    quiet = TRUE)
 
 dpt[dpt$code_insee %in% c("69D", "69M"), "code_insee"] <- "69"
